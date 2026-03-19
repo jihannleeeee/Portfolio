@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jihan Lee — Developer</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne+Mono&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --cyan:   #00f5ff;
+  --pink:   #ff2d78;
+  --dark:   #020812;
+  --card:   rgba(0,245,255,0.04);
+  --border: rgba(0,245,255,0.15);
+  --text:   rgba(200,240,255,0.85);
+  --muted:  rgba(100,180,220,0.5);
+  --mono:   'Syne Mono', monospace;
+  --sans:   'Syne', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--dark);
+  color: var(--text);
+  font-family: var(--sans);
+  overflow-x: hidden;
+  cursor: none;
+}
+
+/* ── Custom cursor ─────────────────────────────────────── */
+#cursor {
+  position: fixed;
+  width: 10px; height: 10px;
+  background: var(--cyan);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 9999;
+  transform: translate(-50%,-50%);
+  transition: width 0.15s, height 0.15s, background 0.15s;
+  mix-blend-mode: screen;
+}
+#cursor-ring {
+  position: fixed;
+  width: 36px; height: 36px;
+  border: 1px solid rgba(0,245,255,0.4);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 9998;
+  transform: translate(-50%,-50%);
+  transition: transform 0.08s linear, width 0.2s, height 0.2s;
+}
+body:has(a:hover) #cursor,
+body:has(button:hover) #cursor { width: 18px; height: 18px; background: var(--pink); }
+body:has(a:hover) #cursor-ring,
+body:has(button:hover) #cursor-ring { width: 52px; height: 52px; border-color: rgba(255,45,120,0.5); }
+
+/* ── Canvas background ─────────────────────────────────── */
+#bg { position: fixed; inset: 0; z-index: 0; }
+
+/* ── Scanline overlay ──────────────────────────────────── */
+#scanlines {
+  position: fixed; inset: 0; z-index: 1; pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.03) 2px,
+    rgba(0,0,0,0.03) 4px
+  );
+}
+
+/* ── Vignette ──────────────────────────────────────────── */
+#vignette {
+  position: fixed; inset: 0; z-index: 1; pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 50%, rgba(2,8,18,0.85) 100%);
+}
+
+/* ── Nav ───────────────────────────────────────────────── */
+nav {
+  position: fixed; top: 0; left: 0; right: 0;
+  z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20px 48px;
+  background: linear-gradient(to bottom, rgba(2,8,18,0.95), transparent);
+}
+.nav-logo {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--cyan);
+  letter-spacing: 0.15em;
+  text-decoration: none;
+}
+.nav-logo span { color: var(--pink); }
+.nav-links { display: flex; gap: 32px; list-style: none; }
+.nav-links a {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  text-decoration: none;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  transition: color 0.2s;
+  position: relative;
+}
+.nav-links a::after {
+  content: '';
+  position: absolute; bottom: -3px; left: 0; right: 0;
+  height: 1px; background: var(--cyan);
+  transform: scaleX(0); transition: transform 0.2s;
+}
+.nav-links a:hover { color: var(--cyan); }
+.nav-links a:hover::after { transform: scaleX(1); }
+
+/* ── Sections ──────────────────────────────────────────── */
+main { position: relative; z-index: 2; }
+section { min-height: 100vh; padding: 120px 48px; max-width: 1100px; margin: 0 auto; }
+
+/* ── Hero ──────────────────────────────────────────────── */
+#hero {
+  display: flex; flex-direction: column;
+  justify-content: center; min-height: 100vh;
+  padding-top: 140px;
+}
+.hero-tag {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--pink);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  margin-bottom: 20px;
+  opacity: 0;
+  animation: fadeUp 0.6s 0.2s forwards;
+}
+.hero-name {
+  font-size: clamp(52px, 8vw, 96px);
+  font-weight: 800;
+  line-height: 0.95;
+  letter-spacing: -0.02em;
+  margin-bottom: 24px;
+  opacity: 0;
+  animation: fadeUp 0.6s 0.4s forwards;
+}
+.hero-name .accent { color: var(--cyan); display: block; }
+.hero-sub {
+  font-size: 16px;
+  color: var(--muted);
+  font-family: var(--mono);
+  letter-spacing: 0.05em;
+  margin-bottom: 48px;
+  max-width: 480px;
+  line-height: 1.7;
+  opacity: 0;
+  animation: fadeUp 0.6s 0.6s forwards;
+}
+.hero-sub .hl { color: var(--cyan); }
+.hero-cta {
+  display: flex; gap: 16px; flex-wrap: wrap;
+  opacity: 0;
+  animation: fadeUp 0.6s 0.8s forwards;
+}
+.btn {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 12px 28px;
+  text-decoration: none;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+}
+.btn-primary {
+  background: var(--cyan);
+  color: var(--dark);
+  font-weight: 700;
+}
+.btn-primary:hover { background: #fff; box-shadow: 0 0 30px rgba(0,245,255,0.4); }
+.btn-outline {
+  background: transparent;
+  color: var(--cyan);
+  border: 1px solid var(--border);
+}
+.btn-outline:hover { border-color: var(--cyan); background: rgba(0,245,255,0.06); }
+
+/* Scroll indicator */
+.scroll-hint {
+  margin-top: 80px;
+  display: flex; align-items: center; gap: 12px;
+  font-family: var(--mono); font-size: 10px;
+  color: var(--muted); letter-spacing: 0.12em;
+  opacity: 0; animation: fadeUp 0.6s 1.2s forwards;
+}
+.scroll-line {
+  width: 40px; height: 1px; background: var(--muted);
+  position: relative; overflow: hidden;
+}
+.scroll-line::after {
+  content: ''; position: absolute; inset: 0;
+  background: var(--cyan);
+  animation: scanLine 1.8s ease-in-out infinite;
+}
+@keyframes scanLine {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* ── Section headers ───────────────────────────────────── */
+.section-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--pink);
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+.section-title {
+  font-size: clamp(28px, 4vw, 44px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin-bottom: 56px;
+  line-height: 1.1;
+}
+.section-title .dim { color: var(--muted); }
+
+/* ── About ─────────────────────────────────────────────── */
+#about { padding-top: 80px; }
+.about-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 64px;
+  align-items: start;
+}
+.about-text p {
+  font-size: 15px;
+  line-height: 1.85;
+  color: var(--text);
+  margin-bottom: 20px;
+}
+.about-text p .hl { color: var(--cyan); font-family: var(--mono); }
+.about-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.stat-card {
+  border: 1px solid var(--border);
+  background: var(--card);
+  padding: 24px 20px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.2s, background 0.2s;
+}
+.stat-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--cyan), var(--pink));
+  transform: scaleX(0);
+  transition: transform 0.3s;
+}
+.stat-card:hover { border-color: rgba(0,245,255,0.35); background: rgba(0,245,255,0.07); }
+.stat-card:hover::before { transform: scaleX(1); }
+.stat-num {
+  font-size: 36px;
+  font-weight: 800;
+  color: var(--cyan);
+  line-height: 1;
+  margin-bottom: 6px;
+}
+.stat-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* ── Skills ────────────────────────────────────────────── */
+#skills { padding-top: 80px; }
+.skills-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+.skill-chip {
+  border: 1px solid var(--border);
+  background: var(--card);
+  padding: 16px 20px;
+  display: flex; align-items: center; gap: 12px;
+  transition: all 0.2s;
+  cursor: default;
+  position: relative; overflow: hidden;
+}
+.skill-chip::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(0,245,255,0.06), transparent);
+  opacity: 0; transition: opacity 0.2s;
+}
+.skill-chip:hover { border-color: rgba(0,245,255,0.4); transform: translateY(-2px); }
+.skill-chip:hover::after { opacity: 1; }
+.skill-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--cyan); flex-shrink: 0;
+  box-shadow: 0 0 8px var(--cyan);
+}
+.skill-name {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text);
+  letter-spacing: 0.05em;
+}
+.skill-tag {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  background: rgba(0,245,255,0.06);
+  padding: 2px 7px;
+  border: 1px solid var(--border);
+}
+
+/* ── Projects ──────────────────────────────────────────── */
+#projects { padding-top: 80px; }
+.projects-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.project-card {
+  border: 1px solid var(--border);
+  background: var(--card);
+  padding: 32px;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s;
+  text-decoration: none; color: inherit;
+  display: block;
+}
+.project-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; bottom: 0;
+  width: 2px;
+  background: linear-gradient(to bottom, var(--cyan), var(--pink));
+  transform: scaleY(0); transform-origin: top;
+  transition: transform 0.3s;
+}
+.project-card:hover { border-color: rgba(0,245,255,0.3); background: rgba(0,245,255,0.06); transform: translateY(-4px); }
+.project-card:hover::before { transform: scaleY(1); }
+.project-num {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--pink);
+  letter-spacing: 0.15em;
+  margin-bottom: 16px;
+}
+.project-name {
+  font-size: 20px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 12px;
+  letter-spacing: -0.01em;
+}
+.project-desc {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.7;
+  margin-bottom: 24px;
+}
+.project-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+.project-tag {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--cyan);
+  border: 1px solid rgba(0,245,255,0.25);
+  padding: 3px 9px;
+  letter-spacing: 0.08em;
+}
+.project-arrow {
+  position: absolute; top: 28px; right: 28px;
+  font-size: 18px; color: var(--border);
+  transition: color 0.2s, transform 0.2s;
+}
+.project-card:hover .project-arrow { color: var(--cyan); transform: translate(3px,-3px); }
+
+/* Featured card spans full width */
+.project-card.featured { grid-column: 1 / -1; }
+.project-card.featured .project-name { font-size: 26px; }
+
+/* ── Experience ─────────────────────────────────────────── */
+#experience { padding-top: 80px; }
+.exp-list { display: flex; flex-direction: column; gap: 0; }
+.exp-item {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 32px;
+  padding: 32px 0;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.2s;
+}
+.exp-item:first-child { border-top: 1px solid var(--border); }
+.exp-date {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  padding-top: 4px;
+}
+.exp-role { font-size: 17px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+.exp-company {
+  font-family: var(--mono); font-size: 11px;
+  color: var(--cyan); letter-spacing: 0.1em; margin-bottom: 10px;
+}
+.exp-desc { font-size: 13px; color: var(--muted); line-height: 1.7; }
+
+/* ── Contact ────────────────────────────────────────────── */
+#contact { padding-top: 80px; text-align: center; }
+#contact .section-title { margin-bottom: 16px; }
+.contact-sub {
+  font-family: var(--mono); font-size: 13px;
+  color: var(--muted); margin-bottom: 48px; letter-spacing: 0.05em;
+}
+.contact-links { display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; }
+.contact-link {
+  font-family: var(--mono); font-size: 11px;
+  color: var(--text); text-decoration: none;
+  border: 1px solid var(--border);
+  padding: 14px 28px; letter-spacing: 0.1em;
+  text-transform: uppercase; transition: all 0.2s;
+  display: flex; align-items: center; gap: 10px;
+}
+.contact-link:hover { border-color: var(--cyan); color: var(--cyan); background: rgba(0,245,255,0.05); }
+.contact-link .icon { font-size: 14px; }
+
+/* ── Footer ─────────────────────────────────────────────── */
+footer {
+  position: relative; z-index: 2;
+  border-top: 1px solid var(--border);
+  padding: 28px 48px;
+  display: flex; justify-content: space-between; align-items: center;
+  font-family: var(--mono); font-size: 10px; color: var(--muted);
+  letter-spacing: 0.08em;
+}
+
+/* ── Animations ─────────────────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.reveal {
+  opacity: 0; transform: translateY(30px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+.reveal.visible { opacity: 1; transform: translateY(0); }
+
+/* ── Glitch effect on name hover ───────────────────────── */
+.hero-name:hover .accent {
+  animation: glitch 0.3s steps(2) 1;
+}
+@keyframes glitch {
+  0%   { clip-path: inset(0 0 80% 0); transform: translate(-3px, 0); color: var(--pink); }
+  25%  { clip-path: inset(40% 0 40% 0); transform: translate(3px, 0); }
+  50%  { clip-path: inset(80% 0 0 0); transform: translate(-2px, 0); color: var(--cyan); }
+  100% { clip-path: none; transform: none; }
+}
+
+/* ── Responsive ─────────────────────────────────────────── */
+@media (max-width: 768px) {
+  nav { padding: 18px 24px; }
+  .nav-links { display: none; }
+  section { padding: 80px 24px; }
+  .about-grid { grid-template-columns: 1fr; gap: 40px; }
+  .projects-grid { grid-template-columns: 1fr; }
+  .project-card.featured { grid-column: auto; }
+  .exp-item { grid-template-columns: 1fr; gap: 8px; }
+  footer { flex-direction: column; gap: 8px; text-align: center; }
+}
+</style>
+</head>
+<body>
+
+<div id="cursor"></div>
+<div id="cursor-ring"></div>
+<canvas id="bg"></canvas>
+<div id="scanlines"></div>
+<div id="vignette"></div>
+
+<nav>
+  <a class="nav-logo" href="#hero">JL<span>.</span></a>
+  <ul class="nav-links">
+    <li><a href="#about">About</a></li>
+    <li><a href="#skills">Skills</a></li>
+    <li><a href="#projects">Projects</a></li>
+    <li><a href="#experience">Experience</a></li>
+    <li><a href="#contact">Contact</a></li>
+  </ul>
+</nav>
+
+<main>
+
+  <!-- ── Hero ── -->
+  <section id="hero">
+    <p class="hero-tag">// available for cool projects</p>
+    <h1 class="hero-name">
+      Jihan<br>
+      <span class="accent">Lee.</span>
+    </h1>
+    <p class="hero-sub">
+      <span class="hl">16 year old developer</span> who builds cool stuff.<br>
+      From 3D solar systems to industrial automation.
+    </p>
+    <div class="hero-cta">
+      <a href="#projects" class="btn btn-primary">View Projects</a>
+      <a href="#contact" class="btn btn-outline">Get In Touch</a>
+    </div>
+    <div class="scroll-hint">
+      <div class="scroll-line"></div>
+      scroll to explore
+    </div>
+  </section>
+
+  <!-- ── About ── -->
+  <section id="about">
+    <p class="section-label reveal">// 01 — about</p>
+    <h2 class="section-title reveal">A bit about <span class="dim">me.</span></h2>
+    <div class="about-grid">
+      <div class="about-text reveal">
+        <p>
+          I'm <span class="hl">Jihan Lee</span>, a 16 year old self-taught developer with a passion for building things that look and feel exceptional — whether that's a real-time 3D simulation of the solar system or industrial automation logic.
+        </p>
+        <p>
+          I work across a broad stack: from frontend web (Three.js, JavaScript, HTML) to systems programming (Python) and industrial control (Structured Text, STEP 7 Siemens). I like projects that push me into unfamiliar territory.
+        </p>
+        <p>
+          When I'm not coding I'm probably thinking about the next thing to build.
+        </p>
+      </div>
+      <div class="about-stats reveal">
+        <div class="stat-card">
+          <div class="stat-num">16</div>
+          <div class="stat-label">Years old</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num">6+</div>
+          <div class="stat-label">Technologies</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num">3D</div>
+          <div class="stat-label">Web Projects</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num">∞</div>
+          <div class="stat-label">Ideas queued</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Skills ── -->
+  <section id="skills">
+    <p class="section-label reveal">// 02 — skills</p>
+    <h2 class="section-title reveal">What I <span class="dim">work with.</span></h2>
+    <div class="skills-grid reveal">
+      <div class="skill-chip">
+        <div class="skill-dot"></div>
+        <span class="skill-name">JavaScript</span>
+        <span class="skill-tag">CORE</span>
+      </div>
+      <div class="skill-chip">
+        <div class="skill-dot"></div>
+        <span class="skill-name">Three.js</span>
+        <span class="skill-tag">3D</span>
+      </div>
+      <div class="skill-chip">
+        <div class="skill-dot"></div>
+        <span class="skill-name">HTML / CSS</span>
+        <span class="skill-tag">FRONTEND</span>
+      </div>
+      <div class="skill-chip">
+        <div class="skill-dot"></div>
+        <span class="skill-name">Python</span>
+        <span class="skill-tag">SCRIPTING</span>
+      </div>
+      <div class="skill-chip">
+        <div class="skill-dot" style="background:var(--pink);box-shadow:0 0 8px var(--pink)"></div>
+        <span class="skill-name">Structured Text</span>
+        <span class="skill-tag">PLC</span>
+      </div>
+      <div class="skill-chip">
+        <div class="skill-dot" style="background:var(--pink);box-shadow:0 0 8px var(--pink)"></div>
+        <span class="skill-name">STEP 7 Siemens</span>
+        <span class="skill-tag">INDUSTRIAL</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Projects ── -->
+  <section id="projects">
+    <p class="section-label reveal">// 03 — projects</p>
+    <h2 class="section-title reveal">Things I've <span class="dim">built.</span></h2>
+    <div class="projects-grid">
+
+      <a class="project-card featured reveal" href="https://github.com/jihannleeeee" target="_blank">
+        <span class="project-arrow">↗</span>
+        <p class="project-num">001 — FEATURED</p>
+        <h3 class="project-name">Interactive Solar System</h3>
+        <p class="project-desc">
+          A real-time 3D simulation of the Solar System built with Three.js. Features procedurally generated planet textures, realistic Keplerian orbits, 16 moons, Saturn's rings with Cassini Division, asteroid belt, Halley's Comet with particle tails, Web Audio API sound design, time controls, search, and a quiz mode.
+        </p>
+        <div class="project-tags">
+          <span class="project-tag">Three.js</span>
+          <span class="project-tag">JavaScript</span>
+          <span class="project-tag">Web Audio API</span>
+          <span class="project-tag">Canvas API</span>
+          <span class="project-tag">ES Modules</span>
+        </div>
+      </a>
+
+      <a class="project-card reveal" href="https://github.com/jihannleeeee" target="_blank">
+        <span class="project-arrow">↗</span>
+        <p class="project-num">002</p>
+        <h3 class="project-name">My Next Project</h3>
+        <p class="project-desc">
+          Always building something new. Check my GitHub to see what's coming.
+        </p>
+        <div class="project-tags">
+          <span class="project-tag">COMING SOON</span>
+        </div>
+      </a>
+
+      <a class="project-card reveal" href="https://github.com/jihannleeeee" target="_blank">
+        <span class="project-arrow">↗</span>
+        <p class="project-num">003</p>
+        <h3 class="project-name">And Another One</h3>
+        <p class="project-desc">
+          Watch this space.
+        </p>
+        <div class="project-tags">
+          <span class="project-tag">COMING SOON</span>
+        </div>
+      </a>
+
+    </div>
+  </section>
+
+  <!-- ── Experience ── -->
+  <section id="experience">
+    <p class="section-label reveal">// 04 — experience</p>
+    <h2 class="section-title reveal">Where I've <span class="dim">worked.</span></h2>
+    <div class="exp-list">
+      <div class="exp-item reveal">
+        <div class="exp-date">2024 — NOW</div>
+        <div>
+          <div class="exp-role">Independent Developer</div>
+          <div class="exp-company">SELF-DIRECTED</div>
+          <div class="exp-desc">Building personal projects across web, 3D graphics, and industrial automation. Exploring new technologies independently and shipping real, polished work.</div>
+        </div>
+      </div>
+      <div class="exp-item reveal">
+        <div class="exp-date">2024 — NOW</div>
+        <div>
+          <div class="exp-role">Student</div>
+          <div class="exp-company">TONBRIDGE SCHOOL</div>
+          <div class="exp-desc">Studying whilst independently building projects across web development, 3D graphics, and industrial automation in my own time.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Contact ── -->
+  <section id="contact">
+    <p class="section-label reveal" style="text-align:center">// 05 — contact</p>
+    <h2 class="section-title reveal">Let's <span class="dim">talk.</span></h2>
+    <p class="contact-sub reveal">Hit me up — always open to cool projects.</p>
+    <div class="contact-links reveal">
+      <a href="https://github.com/jihannleeeee" target="_blank" class="contact-link">
+        <span class="icon">⌥</span> GitHub
+      </a>
+      <a href="/cdn-cgi/l/email-protection#214b4849404f4d444410141461464c40484d0f424e4c" class="contact-link">
+        <span class="icon">✉</span> <span class="__cf_email__" data-cfemail="117b7879707f7d747420242451767c70787d3f727e7c">[email&#160;protected]</span>
+      </a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <span>© 2025 Jihan Lee</span>
+  <span>Built with JavaScript & Three.js</span>
+</footer>
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ── Custom cursor ──────────────────────────────────────────────────
+const cursor     = document.getElementById('cursor');
+const cursorRing = document.getElementById('cursor-ring');
+let mx = 0, my = 0, rx = 0, ry = 0;
+document.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; });
+function animateCursor() {
+  cursor.style.left = mx + 'px';
+  cursor.style.top  = my + 'px';
+  rx += (mx - rx) * 0.12;
+  ry += (my - ry) * 0.12;
+  cursorRing.style.left = rx + 'px';
+  cursorRing.style.top  = ry + 'px';
+  requestAnimationFrame(animateCursor);
+}
+animateCursor();
+
+// ── Three.js background ────────────────────────────────────────────
+const canvas   = document.getElementById('bg');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+
+const scene  = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.1, 2000);
+camera.position.z = 80;
+
+// Starfield
+const starGeo = new THREE.BufferGeometry();
+const starVerts = new Float32Array(8000 * 3);
+const starCols  = new Float32Array(8000 * 3);
+for (let i = 0; i < 8000; i++) {
+  const theta = Math.random() * Math.PI * 2;
+  const phi   = Math.acos(2 * Math.random() - 1);
+  const r     = 400 + Math.random() * 600;
+  starVerts[i*3]   = r * Math.sin(phi) * Math.cos(theta);
+  starVerts[i*3+1] = r * Math.sin(phi) * Math.sin(theta);
+  starVerts[i*3+2] = r * Math.cos(phi);
+  const t = Math.random();
+  starCols[i*3]   = t > 0.7 ? 0.6 : 1;
+  starCols[i*3+1] = t > 0.5 ? 0.9 : 1;
+  starCols[i*3+2] = 1;
+}
+starGeo.setAttribute('position', new THREE.BufferAttribute(starVerts, 3));
+starGeo.setAttribute('color',    new THREE.BufferAttribute(starCols, 3));
+scene.add(new THREE.Points(starGeo, new THREE.PointsMaterial({
+  size: 0.7, vertexColors: true, sizeAttenuation: true, transparent: true, opacity: 0.8
+})));
+
+// Floating grid plane
+const gridGeo = new THREE.PlaneGeometry(300, 300, 30, 30);
+const gridMat = new THREE.MeshBasicMaterial({
+  color: 0x00f5ff, wireframe: true, transparent: true, opacity: 0.04
+});
+const grid = new THREE.Mesh(gridGeo, gridMat);
+grid.rotation.x = -Math.PI / 2;
+grid.position.y = -40;
+scene.add(grid);
+
+// Floating particles (cyan dust)
+const partGeo = new THREE.BufferGeometry();
+const partVerts = new Float32Array(300 * 3);
+const partSpeeds = [];
+for (let i = 0; i < 300; i++) {
+  partVerts[i*3]   = (Math.random() - 0.5) * 200;
+  partVerts[i*3+1] = (Math.random() - 0.5) * 120;
+  partVerts[i*3+2] = (Math.random() - 0.5) * 100;
+  partSpeeds.push((Math.random() - 0.5) * 0.008);
+}
+partGeo.setAttribute('position', new THREE.BufferAttribute(partVerts, 3));
+const partPoints = new THREE.Points(partGeo, new THREE.PointsMaterial({
+  size: 1.2, color: 0x00f5ff, transparent: true, opacity: 0.35,
+  sizeAttenuation: true, blending: THREE.AdditiveBlending
+}));
+scene.add(partPoints);
+
+// Mouse parallax
+let targetX = 0, targetY = 0, currentX = 0, currentY = 0;
+document.addEventListener('mousemove', e => {
+  targetX = (e.clientX / innerWidth  - 0.5) * 0.4;
+  targetY = (e.clientY / innerHeight - 0.5) * 0.2;
+});
+
+// Scroll-based camera
+let scrollY = 0;
+window.addEventListener('scroll', () => { scrollY = window.scrollY; });
+
+window.addEventListener('resize', () => {
+  renderer.setSize(innerWidth, innerHeight);
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+});
+
+const clock = new THREE.Clock();
+function renderBG() {
+  requestAnimationFrame(renderBG);
+  const t = clock.getElapsedTime();
+
+  // Parallax
+  currentX += (targetX - currentX) * 0.05;
+  currentY += (targetY - currentY) * 0.05;
+  camera.rotation.y = currentX;
+  camera.rotation.x = currentY;
+
+  // Scroll camera drift
+  camera.position.y = -scrollY * 0.015;
+
+  // Grid subtle pulse
+  gridMat.opacity = 0.03 + Math.sin(t * 0.5) * 0.01;
+
+  // Float particles
+  const pos = partGeo.attributes.position.array;
+  for (let i = 0; i < 300; i++) {
+    pos[i*3+1] += partSpeeds[i];
+    if (pos[i*3+1] > 60)  pos[i*3+1] = -60;
+    if (pos[i*3+1] < -60) pos[i*3+1] =  60;
+  }
+  partGeo.attributes.position.needsUpdate = true;
+
+  renderer.render(scene, camera);
+}
+renderBG();
+
+// ── Scroll reveal ──────────────────────────────────────────────────
+const revealEls = document.querySelectorAll('.reveal');
+const observer  = new IntersectionObserver((entries) => {
+  entries.forEach((e, i) => {
+    if (e.isIntersecting) {
+      setTimeout(() => e.target.classList.add('visible'), i * 80);
+    }
+  });
+}, { threshold: 0.1 });
+revealEls.forEach(el => observer.observe(el));
+</script>
+</body>
+</html>
